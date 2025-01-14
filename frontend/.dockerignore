@@ -1,0 +1,16 @@
+# Ignore local dev modules and logs
+node_modules
+*.log
+
+# If you use Git, ignore the .git folder
+.git
+
+# If your Docker build is just copying source code for a React app,
+# you generally don't need these either:
+.cache
+dist
+build
+
+# You can also ignore Docker-related artifacts
+Dockerfile
+docker-compose.yml

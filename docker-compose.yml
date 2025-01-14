@@ -1,0 +1,24 @@
+version: '3.8'
+services:
+  backend:
+    build: ./backend
+    container_name: pdf_tool_backend
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backend:/app
+    networks:
+      - pdf_tool_network
+
+  frontend:
+    build: ./frontend
+    container_name: pdf_tool_frontend
+    ports:
+      - "3000:80"
+    networks:
+      - pdf_tool_network
+
+networks:
+  pdf_tool_network:
+    driver: bridge
+
