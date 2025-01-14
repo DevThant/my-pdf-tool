@@ -1,22 +1,37 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import axios from 'axios';
+import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 
 const MergePage = () => {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [mergedFileURL, setMergedFileURL] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
 
-  const onDrop = (acceptedFiles) => {
+  // 1) Handle drop
+  const onDrop = useCallback((acceptedFiles) => {
     setSelectedFiles((prev) => [...prev, ...acceptedFiles]);
-  };
+  }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop });
 
+  // 2) Drag & drop reordering logic
+  const handleDragEnd = (result) => {
+    if (!result.destination) return; // dropped outside the list
+
+    const newFiles = Array.from(selectedFiles);
+    const [movedFile] = newFiles.splice(result.source.index, 1);
+    newFiles.splice(result.destination.index, 0, movedFile);
+
+    setSelectedFiles(newFiles);
+  };
+
+  // 3) Remove one file from the list
   const handleRemoveFile = (index) => {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
+  // 4) Merge request
   const handleMerge = async () => {
     try {
       if (selectedFiles.length < 2) {
@@ -27,6 +42,7 @@ const MergePage = () => {
       setMergedFileURL(null);
 
       const formData = new FormData();
+      // Append in the current (possibly reordered) order
       selectedFiles.forEach((file) => {
         formData.append('files', file);
       });
@@ -35,7 +51,6 @@ const MergePage = () => {
         responseType: 'blob'
       });
 
-      // Convert blob to URL
       const fileURL = URL.createObjectURL(response.data);
       setMergedFileURL(fileURL);
     } catch (error) {
@@ -50,6 +65,7 @@ const MergePage = () => {
   return (
     <div style={styles.container}>
       <h2>Merge PDF</h2>
+
       <div
         {...getRootProps()}
         style={{
@@ -59,20 +75,49 @@ const MergePage = () => {
       >
         <input {...getInputProps()} />
         {
-          isDragActive ?
-            <p>Drop files here ...</p> :
-            <p>Drag &amp; drop files here, or click to select</p>
+          isDragActive
+            ? <p>Drop files here ...</p>
+            : <p>Drag &amp; drop files here, or click to select</p>
         }
       </div>
 
-      <div style={styles.fileList}>
-        {selectedFiles.map((file, index) => (
-          <div key={index} style={styles.fileItem}>
-            <span>{index + 1}. {file.name}</span>
-            <button onClick={() => handleRemoveFile(index)} style={styles.removeButton}>X</button>
-          </div>
-        ))}
-      </div>
+      {/* Draggable list */}
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <Droppable droppableId="filesList">
+          {(provided) => (
+            <div
+              {...provided.droppableProps}
+              ref={provided.innerRef}
+              style={styles.fileList}
+            >
+              {selectedFiles.map((file, index) => (
+                <Draggable key={file.name + index} draggableId={file.name + index} index={index}>
+                  {(draggableProvided) => (
+                    <div
+                      ref={draggableProvided.innerRef}
+                      {...draggableProvided.draggableProps}
+                      {...draggableProvided.dragHandleProps}
+                      style={{
+                        ...styles.fileItem,
+                        ...draggableProvided.draggableProps.style
+                      }}
+                    >
+                      <span>{index + 1}. {file.name}</span>
+                      <button
+                        onClick={() => handleRemoveFile(index)}
+                        style={styles.removeButton}
+                      >
+                        X
+                      </button>
+                    </div>
+                  )}
+                </Draggable>
+              ))}
+              {provided.placeholder}
+            </div>
+          )}
+        </Droppable>
+      </DragDropContext>
 
       <button
         onClick={handleMerge}
@@ -125,7 +170,8 @@ const styles = {
     justifyContent: 'space-between',
     border: '1px solid #ccc',
     padding: '5px',
-    marginBottom: '5px'
+    marginBottom: '5px',
+    backgroundColor: '#fff'
   },
   removeButton: {
     backgroundColor: 'red',
