@@ -28,25 +28,38 @@ const UnlockPage = () => {
       }
       setErrorMessage("");
       setUnlockedFileURL(null);
-
+  
       const formData = new FormData();
       formData.append('file', selectedFile);
       formData.append('password', password);
-
+  
       const response = await axios.post('/api/unlock', formData, {
         responseType: 'blob'
       });
-
+  
       const fileURL = URL.createObjectURL(response.data);
       setUnlockedFileURL(fileURL);
     } catch (error) {
-      if (error.response && error.response.data && error.response.data.error) {
-        setErrorMessage(error.response.data.error);
+      // Enhanced error handling
+      if (error.response) {
+        const { status, data } = error.response;
+        if (status === 401) {
+          // Typically "Incorrect password" from your Flask code
+          setErrorMessage(data.error || "Incorrect password.");
+        } else if (status === 400) {
+          // Possibly "No file provided", "No password provided", or a generic 400
+          setErrorMessage(data.error || "Invalid request. Please check your inputs.");
+        } else {
+          // Some other status code
+          setErrorMessage(data.error || `Server returned status ${status}`);
+        }
       } else {
+        // No response or network error
         setErrorMessage("An error occurred while unlocking the file.");
       }
     }
   };
+  
 
   return (
     <div style={styles.container}>

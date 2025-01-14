@@ -40,27 +40,36 @@ const MergePage = () => {
       }
       setErrorMessage("");
       setMergedFileURL(null);
-
+  
       const formData = new FormData();
-      // Append in the current (possibly reordered) order
       selectedFiles.forEach((file) => {
         formData.append('files', file);
       });
-
+  
       const response = await axios.post('/api/merge', formData, {
         responseType: 'blob'
       });
-
+  
       const fileURL = URL.createObjectURL(response.data);
       setMergedFileURL(fileURL);
     } catch (error) {
-      if (error.response && error.response.data && error.response.data.error) {
-        setErrorMessage(error.response.data.error);
+      // Enhanced error handling
+      if (error.response) {
+        const { status, data } = error.response;
+        if (status === 400) {
+          // Possibly "One of the PDFs is locked" or "At least two files are required" or "No files provided"
+          setErrorMessage(data.error || "Bad request. The PDF may be locked or invalid.");
+        } else {
+          // Some other status code
+          setErrorMessage(data.error || `Server error (status ${status}).`);
+        }
       } else {
+        // No response or network error
         setErrorMessage("An error occurred while merging the files.");
       }
     }
   };
+  
 
   return (
     <div style={styles.container}>
